@@ -1537,13 +1537,13 @@
 
       rTN
         .attr("x", Ax(diseasedW))
-        .attr("y", Ay(tnH))
+        .attr("y", Ay(fpH + tnH))
         .attr("width", tnWidth)
         .attr("height", tnHeight);
 
       rFP
         .attr("x", Ax(diseasedW))
-        .attr("y", Ay(tnH + fpH))
+        .attr("y", Ay(fpH))
         .attr("width", fpWidth)
         .attr("height", fpHeight);
 
@@ -1593,7 +1593,7 @@
         .text("(1 - Sensitivity)");
 
       // TN (Specificity) bracket: height of blue rectangle
-      const tnTop = Ay(tnH);
+      const tnTop = Ay(fpH + tnH);
       const tnBottom = tnTop + tnHeight;
 
       brSpec.attr("d",
@@ -1610,7 +1610,7 @@
         .text("Specificity");
 
       // FP ((1 - Specificity)) bracket: height of green rectangle
-      const fpTop = Ay(tnH + fpH);
+      const fpTop = Ay(fpH);
       const fpBottom = fpTop + fpHeight;
 
       brOneMinusSpec.attr("d",
@@ -1625,7 +1625,7 @@
         .attr("y", fpTop + fpHeight/2)
         .attr("dominant-baseline","middle")
         .text("(1 - Specificity)");
-
+        
       // Bottom brackets: Prevalence and (1 - Prevalence)
       const prevBracketY = innerBottom + 16;
       const oneMinusPrevBracketY = innerBottom + 36;

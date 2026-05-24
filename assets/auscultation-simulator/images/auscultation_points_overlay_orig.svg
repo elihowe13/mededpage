@@ -1,0 +1,93 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1086"
+  height="1448"
+  viewBox="0 0 1086 1448"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Four cardiac auscultation points overlay</title>
+  <desc id="desc">Transparent SVG overlay marking the aortic, pulmonic, tricuspid, and mitral auscultation points on a front-facing pediatric manikin torso.</desc>
+
+  <defs>
+    <style>
+      .point-ring {
+        fill: rgba(255,255,255,0.75);
+        stroke: #1f2937;
+        stroke-width: 5;
+      }
+      .point-core {
+        fill: #ef4444;
+        stroke: #ffffff;
+        stroke-width: 4;
+      }
+      .hit-area {
+        fill: transparent;
+        cursor: pointer;
+      }
+      .label-bg {
+        fill: rgba(255,255,255,0.88);
+        stroke: rgba(31,41,55,0.25);
+        stroke-width: 1;
+      }
+      .label-text {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 30px;
+        font-weight: 700;
+        fill: #111827;
+        text-anchor: middle;
+        dominant-baseline: middle;
+        pointer-events: none;
+      }
+    </style>
+  </defs>
+
+  <!--
+    Coordinate system matches the generated PNG:
+    image size 1086 x 1448 px, viewBox 0 0 1086 1448.
+
+    Standard cardiac auscultation areas, approximated for this manikin image:
+    - Aortic: right upper sternal border
+    - Pulmonic: left upper sternal border
+    - Tricuspid: left lower sternal border
+    - Mitral: left 5th intercostal / apical area
+
+    Each group has:
+    - id for JS targeting
+    - data-sound-key for audio mapping
+    - visible marker circle
+    - larger transparent click target
+  -->
+
+  <g id="aortic" class="auscultation-point" data-sound-key="aortic" aria-label="Aortic area">
+    <circle class="point-ring" cx="480" cy="650" r="31" />
+    <circle class="point-core" cx="480" cy="650" r="17" />
+    <rect class="label-bg" x="411" y="589" width="138" height="42" rx="18" />
+    <text class="label-text" x="480" y="611">Aortic</text>
+    <circle class="hit-area" cx="480" cy="650" r="58" />
+  </g>
+
+  <g id="pulmonic" class="auscultation-point" data-sound-key="pulmonic" aria-label="Pulmonic area">
+    <circle class="point-ring" cx="608" cy="650" r="31" />
+    <circle class="point-core" cx="608" cy="650" r="17" />
+    <rect class="label-bg" x="516" y="589" width="184" height="42" rx="18" />
+    <text class="label-text" x="608" y="611">Pulmonic</text>
+    <circle class="hit-area" cx="608" cy="650" r="58" />
+  </g>
+
+  <g id="tricuspid" class="auscultation-point" data-sound-key="tricuspid" aria-label="Tricuspid area">
+    <circle class="point-ring" cx="562" cy="786" r="31" />
+    <circle class="point-core" cx="562" cy="786" r="17" />
+    <rect class="label-bg" x="460" y="812" width="204" height="42" rx="18" />
+    <text class="label-text" x="562" y="834">Tricuspid</text>
+    <circle class="hit-area" cx="562" cy="786" r="58" />
+  </g>
+
+  <g id="mitral" class="auscultation-point" data-sound-key="mitral" aria-label="Mitral area">
+    <circle class="point-ring" cx="675" cy="765" r="31" />
+    <circle class="point-core" cx="675" cy="765" r="17" />
+    <rect class="label-bg" x="605" y="704" width="140" height="42" rx="18" />
+    <text class="label-text" x="675" y="726">Mitral</text>
+    <circle class="hit-area" cx="675" cy="765" r="58" />
+  </g>
+</svg>

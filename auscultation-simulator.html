@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pediatric Heart Sounds</title>
+
+  <!-- Shared site styles. Adjust this href if your shared stylesheet lives elsewhere. -->
+  <link rel="stylesheet" href="assets/shared/css/meded-shared.css" />
+
+  <!-- Page-specific styles for the auscultation simulator. -->
+  <link rel="stylesheet" href="assets/auscultation-simulator/css/auscultation-simulator.css" />
+</head>
+<body>
+  <main class="page auscultation-page">
+    <header class="sim-header">
+      <div>
+        <span class="eyebrow">Auscultation simulator</span>
+        <h1>Pediatric Heart Sounds</h1>
+        <p class="description">
+          Select a case, then click an auscultation point on the manikin to play the corresponding heart sound.
+        </p>
+      </div>
+    </header>
+
+    <section class="sim-shell" aria-label="Pediatric heart sounds auscultation simulator">
+      <aside class="case-sidebar" aria-labelledby="case-list-heading">
+        <div class="sidebar-header">
+          <h2 id="case-list-heading">Cases</h2>
+        </div>
+        <div id="caseList" class="case-list" aria-label="Case selector"></div>
+      </aside>
+
+      <section class="manikin-card" aria-labelledby="manikin-heading">
+        <div class="section-header compact">
+          <div>
+            <h2 id="manikin-heading">Auscultation points</h2>
+            <p class="section-note" id="selectedCaseText">Selected case: —</p>
+          </div>
+        </div>
+
+        <div class="manikin-stage" id="manikinStage">
+          <img
+            class="manikin-image"
+            src="assets/auscultation-simulator/images/manikin.png"
+            alt="Pediatric manikin for cardiac auscultation"
+          />
+
+          <!-- The SVG overlay is displayed on top of the manikin. If the SVG contains elements
+               with ids like aortic, pulmonic, tricuspid, mitral, AV, PV, TV, or MV, the script
+               automatically makes those clickable. -->
+          <object
+            id="auscultation-overlay"
+            class="auscultation-overlay"
+            type="image/svg+xml"
+            data="assets/auscultation-simulator/images/auscultation_points_overlay.svg"
+            aria-label="Auscultation point overlay"
+          ></object>
+
+          <!-- Fallback invisible buttons. These keep the page usable if the embedded SVG ids change
+               or if the browser blocks scripting into the object. Adjust percentages if needed. -->
+          <button class="hotspot fallback-hotspot av" type="button" data-point="AV" aria-label="Play aortic valve area sound"></button>
+          <button class="hotspot fallback-hotspot pv" type="button" data-point="PV" aria-label="Play pulmonic valve area sound"></button>
+          <button class="hotspot fallback-hotspot tv" type="button" data-point="TV" aria-label="Play tricuspid valve area sound"></button>
+          <button class="hotspot fallback-hotspot mv" type="button" data-point="MV" aria-label="Play mitral valve area sound"></button>
+        </div>
+
+        <div class="sound-controls" aria-live="polite">
+          <p id="nowPlayingText">Click a point to play audio.</p>
+          <button id="stopAudioButton" class="secondary-button" type="button">Stop audio</button>
+        </div>
+      </section>
+
+      <aside class="case-info-card" aria-labelledby="case-info-heading">
+        <div class="case-info-topline">Case information</div>
+        <h2 id="case-info-heading">Selected case</h2>
+        <p class="section-note" id="caseInfoLead">
+          Click the button below to reveal the case details (in development).
+        </p>
+
+        <button id="revealCaseButton" class="primary-button" type="button">
+          Reveal case information
+        </button>
+
+        <article id="caseInfoContent" class="case-info-content" hidden></article>
+      </aside>
+    </section>
+    <section class="dataset-attribution-card" aria-labelledby="dataset-attribution-heading">
+      <div class="dataset-attribution-kicker">Dataset attribution</div>
+
+      <p>
+        The heart sound recordings and associated case information used in this simulator
+        are derived from the
+        <a href="https://physionet.org/content/circor-heart-sound/1.0.3/" target="_blank" rel="noopener">
+          CirCor DigiScope Phonocardiogram Dataset
+        </a>,
+        made publicly available through PhysioNet. The dataset files are distributed under the
+        <a href="https://opendatacommons.org/licenses/by/1-0/" target="_blank" rel="noopener">
+          Open Data Commons Attribution License v1.0
+        </a>.
+      </p>
+
+      <p class="dataset-attribution-note">
+        This educational simulator is an independent teaching tool and is not affiliated
+        with or endorsed by the CirCor dataset authors or PhysioNet.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    /*
+      Add or remove case codes here. The page will generate the sidebar buttons
+      and load the matching audio and text files automatically.
+
+      Expected file locations:
+        assets/auscultation-simulator/audio/{caseCode}_AV.wav
+        assets/auscultation-simulator/audio/{caseCode}_PV.wav
+        assets/auscultation-simulator/audio/{caseCode}_TV.wav
+        assets/auscultation-simulator/audio/{caseCode}_MV.wav
+        assets/auscultation-simulator/other/{caseCode}.txt
+    */
+    const INCLUDED_CASE_CODES = [
+        "49974",
+        "49577",
+        "68412",
+        "68213",
+        "68886",
+        "50017",
+        "50231",
+        "49653",
+        "85062",
+        "84822",
+        "85042",
+        "40840",
+        "68582",
+        "85172",
+        "85132",
+        "84718",
+        "85036",
+        "84834",
+        "50127",
+        "68444",
+        "46065",
+        "36327",
+        "49821",
+        "45843",
+        "50238",
+        "49627",
+        "55945",
+        "68456",
+        "69079",
+        "68379",
+        "23625",
+        "49729",
+        "49641",
+        "68359",
+        "51331",
+    ];
+
+    const AUDIO_BASE_PATH = "assets/auscultation-simulator/audio";
+    const CASE_INFO_BASE_PATH = "assets/auscultation-simulator/other";
+
+    const AUSCULTATION_POINTS = {
+      AV: {
+        displayName: "Aortic valve area",
+        svgIds: ["AV", "av", "aortic", "aortic-valve", "aorticValve"]
+      },
+      PV: {
+        displayName: "Pulmonic valve area",
+        svgIds: ["PV", "pv", "pulmonic", "pulmonary", "pulmonic-valve", "pulmonicValve"]
+      },
+      TV: {
+        displayName: "Tricuspid valve area",
+        svgIds: ["TV", "tv", "tricuspid", "tricuspid-valve", "tricuspidValve"]
+      },
+      MV: {
+        displayName: "Mitral valve area",
+        svgIds: ["MV", "mv", "mitral", "mitral-valve", "mitralValve"]
+      }
+    };
+
+    const caseList = document.getElementById("caseList");
+    const selectedCaseText = document.getElementById("selectedCaseText");
+    const nowPlayingText = document.getElementById("nowPlayingText");
+    const stopAudioButton = document.getElementById("stopAudioButton");
+    const revealCaseButton = document.getElementById("revealCaseButton");
+    const caseInfoContent = document.getElementById("caseInfoContent");
+    const caseInfoLead = document.getElementById("caseInfoLead");
+    const overlayObject = document.getElementById("auscultation-overlay");
+
+    let selectedCaseCode = INCLUDED_CASE_CODES[0] || null;
+    let activeAudio = null;
+    let caseInfoLoadedFor = null;
+
+    function createCaseButtons() {
+      caseList.innerHTML = "";
+
+      if (!INCLUDED_CASE_CODES.length) {
+        caseList.innerHTML = '<p class="empty-state">No cases have been added yet.</p>';
+        return;
+      }
+
+      INCLUDED_CASE_CODES.forEach((caseCode, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "case-button";
+        button.dataset.caseCode = caseCode;
+        button.innerHTML = `
+          <span class="case-number">Case ${index + 1}</span>
+          <span class="case-code">${caseCode}</span>
+        `;
+        button.addEventListener("click", () => selectCase(caseCode));
+        caseList.appendChild(button);
+      });
+    }
+
+    function selectCase(caseCode) {
+      selectedCaseCode = caseCode;
+      stopAudio();
+      selectedCaseText.textContent = `Selected case: ${caseCode}`;
+      nowPlayingText.textContent = "Click a point to play audio.";
+      caseInfoLead.textContent = "Click the button below to reveal the case details. (in development)";
+      caseInfoContent.hidden = true;
+      caseInfoContent.innerHTML = "";
+      caseInfoLoadedFor = null;
+      revealCaseButton.textContent = "Reveal case information";
+      revealCaseButton.setAttribute("aria-expanded", "false");
+
+      document.querySelectorAll(".case-button").forEach((button) => {
+        const isSelected = button.dataset.caseCode === caseCode;
+        button.classList.toggle("is-selected", isSelected);
+        button.setAttribute("aria-current", isSelected ? "true" : "false");
+      });
+    }
+
+    function getAudioPath(caseCode, pointCode) {
+      return `${AUDIO_BASE_PATH}/${caseCode}_${pointCode}.wav`;
+    }
+
+    function playPoint(pointCode) {
+      if (!selectedCaseCode) return;
+
+      stopAudio();
+
+      const point = AUSCULTATION_POINTS[pointCode];
+      const audioPath = getAudioPath(selectedCaseCode, pointCode);
+      activeAudio = new Audio(audioPath);
+      activeAudio.loop = true;
+
+      activeAudio.addEventListener("error", () => {
+        nowPlayingText.textContent = `Could not load ${selectedCaseCode}_${pointCode}.wav.`;
+      });
+
+      activeAudio.play()
+        .then(() => {
+          nowPlayingText.textContent = `Playing ${point.displayName} for case ${selectedCaseCode}.`;
+        })
+        .catch(() => {
+          nowPlayingText.textContent = "Audio could not play. Try clicking the point again.";
+        });
+    }
+
+    function stopAudio() {
+      if (activeAudio) {
+        activeAudio.pause();
+        activeAudio.currentTime = 0;
+        activeAudio = null;
+      }
+    }
+
+    function textToHtml(text) {
+      const escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      return escaped
+        .split(/\n\s*\n/g)
+        .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`)
+        .join("");
+    }
+
+    async function loadCaseInfo() {
+      if (!selectedCaseCode) return;
+
+      const isCurrentlyOpen = !caseInfoContent.hidden;
+      if (isCurrentlyOpen && caseInfoLoadedFor === selectedCaseCode) {
+        caseInfoContent.hidden = true;
+        revealCaseButton.textContent = "Reveal case information";
+        revealCaseButton.setAttribute("aria-expanded", "false");
+        return;
+      }
+
+      revealCaseButton.disabled = true;
+      revealCaseButton.textContent = "Loading…";
+
+      try {
+        const response = await fetch(`${CASE_INFO_BASE_PATH}/${selectedCaseCode}.txt`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const text = await response.text();
+        caseInfoContent.innerHTML = textToHtml(text);
+        caseInfoContent.hidden = false;
+        caseInfoLoadedFor = selectedCaseCode;
+        caseInfoLead.textContent = `Case ${selectedCaseCode}`;
+        revealCaseButton.textContent = "Hide case information";
+        revealCaseButton.setAttribute("aria-expanded", "true");
+      } catch (error) {
+        caseInfoContent.innerHTML = `
+          <p><strong>Case information could not be loaded.</strong></p>
+          <p>Expected file: <code>${CASE_INFO_BASE_PATH}/${selectedCaseCode}.txt</code></p>
+          <p>If you are opening this file directly from Finder, try viewing it through a local server or GitHub Pages so <code>fetch()</code> can load the text file.</p>
+        `;
+        caseInfoContent.hidden = false;
+        revealCaseButton.textContent = "Hide case information";
+        revealCaseButton.setAttribute("aria-expanded", "true");
+      } finally {
+        revealCaseButton.disabled = false;
+      }
+    }
+
+    function wireFallbackHotspots() {
+      document.querySelectorAll(".fallback-hotspot").forEach((button) => {
+        button.addEventListener("click", () => playPoint(button.dataset.point));
+      });
+    }
+
+    function wireSvgOverlay() {
+      const svgDocument = overlayObject.contentDocument;
+
+      if (!svgDocument) {
+        console.error("Could not access SVG overlay document.");
+        return;
+      }
+
+      const svgRoot = svgDocument.querySelector("svg");
+
+      if (!svgRoot) {
+        console.error("Could not find SVG root element.");
+        return;
+      }
+
+      Object.entries(AUSCULTATION_POINTS).forEach(([pointCode, point]) => {
+        const selectorList = point.svgIds
+          .map((id) => `#${CSS.escape(id)}`)
+          .join(", ");
+
+        const elements = [
+          ...svgDocument.querySelectorAll(selectorList),
+          ...svgDocument.querySelectorAll(`[data-sound="${pointCode}"]`),
+          ...svgDocument.querySelectorAll(`[data-point="${pointCode}"]`)
+        ];
+
+        const uniqueElements = [...new Set(elements)];
+
+        uniqueElements.forEach((element) => {
+          element.style.cursor = "pointer";
+          element.setAttribute("tabindex", "0");
+          element.setAttribute("role", "button");
+          element.setAttribute("aria-label", `Play ${point.displayName} sound`);
+          element.dataset.pointCode = pointCode;
+
+          element.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            markSelectedSvgPoint(svgDocument, element);
+            playPoint(pointCode);
+          });
+
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+
+              markSelectedSvgPoint(svgDocument, element);
+              playPoint(pointCode);
+            }
+          });
+        });
+      });
+
+      console.log("SVG overlay wired for auscultation points.");
+    }
+
+    function markSelectedSvgPoint(svgDocument, selectedElement) {
+      svgDocument.querySelectorAll(".auscultation-point, [data-sound], [data-point]").forEach((element) => {
+        element.classList.remove("selected");
+        element.setAttribute("aria-selected", "false");
+      });
+
+      selectedElement.classList.add("selected");
+      selectedElement.setAttribute("aria-selected", "true");
+    }
+
+    revealCaseButton.addEventListener("click", loadCaseInfo);
+    stopAudioButton.addEventListener("click", () => {
+      stopAudio();
+      nowPlayingText.textContent = "Audio stopped.";
+    });
+
+    overlayObject.addEventListener("load", wireSvgOverlay);
+
+    createCaseButtons();
+    wireFallbackHotspots();
+    if (selectedCaseCode) selectCase(selectedCaseCode);
+  </script>
+</body>
+</html>

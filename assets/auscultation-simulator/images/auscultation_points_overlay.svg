@@ -1,0 +1,33 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1000 1000"
+  role="img"
+  aria-labelledby="auscultation-overlay-title"
+>
+  <title id="auscultation-overlay-title">Auscultation point overlay</title>
+
+  <style>
+    .auscultation-point {
+      fill: #e53935;
+      stroke: none;
+      cursor: pointer;
+      transition: fill 0.15s ease, transform 0.15s ease;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .auscultation-point:hover,
+    .auscultation-point:focus,
+    .auscultation-point.selected,
+    .auscultation-point[aria-selected="true"] {
+      fill: #1f77b4;
+      transform: scale(1.12);
+    }
+  </style>
+
+  <!-- Adjust cx/cy values if you need to fine-tune placement over the manikin image. -->
+  <circle id="AV" class="auscultation-point" data-sound="AV" cx="430" cy="330" r="22" tabindex="0" aria-label="Aortic area" />
+  <circle id="PV" class="auscultation-point" data-sound="PV" cx="570" cy="330" r="22" tabindex="0" aria-label="Pulmonic area" />
+  <circle id="TV" class="auscultation-point" data-sound="TV" cx="570" cy="475" r="22" tabindex="0" aria-label="Tricuspid area" />
+  <circle id="MV" class="auscultation-point" data-sound="MV" cx="690" cy="540" r="22" tabindex="0" aria-label="Mitral area" />
+</svg>

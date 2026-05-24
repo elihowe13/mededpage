@@ -1,0 +1,369 @@
+/* Pediatric Heart Sounds / auscultation-simulator page styles.
+   This file intentionally builds on the shared meded styles and variable names. */
+
+:root {
+  --sim-sidebar-width: 190px;
+  --sim-info-width: 320px;
+}
+
+.auscultation-page {
+  width: min(1360px, calc(100% - 32px));
+}
+
+.sim-header {
+  margin-bottom: 24px;
+}
+
+.sim-shell {
+  display: grid;
+  grid-template-columns: var(--sim-sidebar-width) minmax(360px, 1fr) var(--sim-info-width);
+  gap: 20px;
+  align-items: start;
+}
+
+.case-sidebar,
+.manikin-card,
+.case-info-card {
+  border: 1px solid var(--border, #dbe3ef);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow, 0 12px 30px rgba(31, 41, 55, 0.08));
+  backdrop-filter: blur(10px);
+}
+
+.case-sidebar {
+  position: sticky;
+  top: 18px;
+  padding: 16px;
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+}
+
+.sidebar-header h2,
+.manikin-card h2,
+.case-info-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+}
+
+.sidebar-header p,
+.case-info-card p,
+.section-note {
+  margin: 4px 0 0;
+  color: var(--muted, #5f6b7a);
+}
+
+.case-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.case-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border, #dbe3ef);
+  border-radius: 14px;
+  background: #ffffff;
+  color: var(--text, #1f2937);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+
+.case-button:hover,
+.case-button:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(31, 119, 180, 0.5);
+  box-shadow: 0 8px 18px rgba(31, 41, 55, 0.08);
+  outline: none;
+}
+
+.case-button.is-selected {
+  border-color: var(--accent, #1f77b4);
+  background: var(--accent-soft, #e7f3fc);
+}
+
+.case-number {
+  font-weight: 800;
+}
+
+.case-code {
+  color: var(--muted, #5f6b7a);
+  font-size: 0.85rem;
+}
+
+.manikin-card {
+  padding: 20px;
+}
+
+.section-header.compact {
+  margin-bottom: 14px;
+}
+
+.manikin-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 560px;
+  border: 1px solid var(--border, #dbe3ef);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at center, rgba(31, 119, 180, 0.08), transparent 22rem),
+    #ffffff;
+  overflow: hidden;
+}
+
+.manikin-image,
+.auscultation-overlay {
+  grid-area: 1 / 1;
+  width: min(100%, 620px);
+  max-height: 72vh;
+  object-fit: contain;
+}
+
+.manikin-image {
+  display: block;
+  z-index: 1;
+}
+
+.auscultation-overlay {
+  position: relative;
+  z-index: 3;
+  aspect-ratio: 1 / 1;
+  pointer-events: auto;
+}
+
+.hotspot {
+  position: absolute;
+  z-index: 4;
+  width: 52px;
+  height: 52px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hotspot:focus-visible {
+  outline: 3px solid var(--accent, #1f77b4);
+  outline-offset: 4px;
+}
+
+/* Approximate fallback hotspot positions. The SVG overlay should handle exact positions. */
+.hotspot.av { left: 50%; top: 26%; transform: translate(-50%, -50%); }
+.hotspot.pv { left: 43%; top: 31%; transform: translate(-50%, -50%); }
+.hotspot.tv { left: 49%; top: 42%; transform: translate(-50%, -50%); }
+.hotspot.mv { left: 58%; top: 46%; transform: translate(-50%, -50%); }
+
+.sound-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: var(--muted, #5f6b7a);
+}
+
+.sound-controls p {
+  margin: 0;
+}
+
+.case-info-card {
+  position: sticky;
+  top: 18px;
+  padding: 20px;
+}
+
+.case-info-topline {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft, #e7f3fc);
+  color: var(--accent-dark, #155d91);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.primary-button {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--accent, #1f77b4);
+  background: var(--accent, #1f77b4);
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(31, 119, 180, 0.18);
+}
+
+.secondary-button {
+  flex: 0 0 auto;
+  padding: 9px 13px;
+  border: 1px solid var(--border, #dbe3ef);
+  background: #ffffff;
+  color: var(--accent-dark, #155d91);
+}
+
+.primary-button:hover,
+.primary-button:focus-visible,
+.secondary-button:hover,
+.secondary-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(31, 41, 55, 0.12);
+  outline: none;
+}
+
+.primary-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.case-info-content {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border, #dbe3ef);
+  color: var(--text, #1f2937);
+}
+
+.case-info-content p {
+  margin: 0 0 12px;
+}
+
+.case-info-content p:last-child {
+  margin-bottom: 0;
+}
+
+.case-info-content code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #eef2f7;
+  color: #334155;
+}
+
+.empty-state {
+  margin: 0;
+  color: var(--muted, #5f6b7a);
+}
+
+@media (max-width: 1100px) {
+  .sim-shell {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .case-info-card {
+    grid-column: 2;
+    position: static;
+  }
+}
+
+@media (max-width: 780px) {
+  .auscultation-page {
+    width: min(100% - 24px, 1360px);
+  }
+
+  .sim-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .case-sidebar,
+  .case-info-card {
+    position: static;
+  }
+
+  .case-list {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+
+  .manikin-stage {
+    min-height: 440px;
+  }
+
+  .sound-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .secondary-button {
+    width: 100%;
+  }
+}
+
+.dataset-attribution-card {
+  margin-top: 32px;
+  padding: 22px 24px;
+  border: 1px solid var(--border, #dbe3ef);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px rgba(31, 41, 55, 0.06);
+  color: var(--text, #1f2937);
+}
+
+.dataset-attribution-kicker {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft, #e7f3fc);
+  color: var(--accent-dark, #155d91);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dataset-attribution-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.dataset-attribution-card p {
+  margin: 0 0 10px;
+  color: var(--muted, #5f6b7a);
+  font-size: 0.95rem;
+}
+
+.dataset-attribution-card p:last-child {
+  margin-bottom: 0;
+}
+
+.dataset-attribution-card a {
+  color: var(--accent-dark, #155d91);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dataset-attribution-citation {
+  font-size: 0.9rem;
+}
+
+.dataset-attribution-note {
+  font-size: 0.85rem;
+}

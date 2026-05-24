@@ -1,0 +1,16 @@
+#Age: Adolescent
+#Sex: Male
+#Murmur: Present
+#Murmur locations: AV+MV+PV+TV
+#Most audible location: MV
+#Systolic murmur timing: Early-systolic
+#Systolic murmur shape: Decrescendo
+#Systolic murmur grading: II/VI
+#Systolic murmur pitch: Medium
+#Systolic murmur quality: Harsh
+#Diastolic murmur timing: Early-diastolic
+#Diastolic murmur shape: Decrescendo
+#Diastolic murmur grading: II/IV
+#Diastolic murmur pitch: Medium
+#Diastolic murmur quality: Blowing
+#Outcome: Abnormal
