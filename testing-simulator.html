@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Diagnostic Curves & Population Areas</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root{
+      --blue:#1f77b4;       /* TN */
+      --purple:#9467bd;     /* FN */
+      --red:#d62728;        /* TP */
+      --green:#2ca02c;      /* FP */
+      --gray:#7f7f7f;       /* total */
+      --grid:#e6e6e6;
+      --axis:#4f4f4f;
+    }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:#222;
+      background:#fff;
+    }
+    header{
+      padding:16px 20px 0;
+    }
+    h1{
+      margin:0 0 8px 0;
+      font-size:18px;
+      font-weight:600;
+    }
+
+    /* Shared card min size */
+    .card,
+    .controls-card,
+    .formula-card{
+      min-width:280px;
+    }
+
+    /* --- Controls + calculations big card --- */
+    .controls-card{
+      margin:0;
+      border:1px solid #ddd;
+      border-radius:12px;
+      padding:10px 14px 10px;
+      box-shadow:0 1px 3px rgba(0,0,0,0.04);
+      background:#fff;
+    }
+    .controls-title-row{
+      display:grid;
+      grid-template-columns: 1.2fr 1fr 1fr 1fr;
+      gap:8px;
+      border-bottom:1px solid #eee;
+      padding:0 4px 6px;
+      margin-bottom:6px;
+      font-size:13px;
+      font-weight:600;
+    }
+    .controls-title-row > div{
+      text-align:left;
+    }
+
+    .controls-block{
+      border-radius:8px;
+      background:#fafafa;
+      padding:8px 10px 6px;
+      margin-bottom:8px;
+    }
+    .controls-block-header{
+      font-size:13px;
+      font-weight:600;
+      margin-bottom:4px;
+    }
+    .controls-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(160px, 1fr));  /* 2 columns now */
+      gap:6px 16px;
+      align-items:center;
+    }
+    .slider-row{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      gap:8px;
+      align-items:center;
+      font-size:13px;
+    }
+    .slider-row label{
+      white-space:nowrap;
+    }
+    input[type="range"]{
+      width:100%;
+    }
+    input[type="number"]{
+      width:100%;
+      padding:4px 6px;
+      border-radius:6px;
+      border:1px solid #d0d0d0;
+      font-size:13px;
+      box-sizing:border-box;
+    }
+    .value-pill{
+      min-width:60px;
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+    }
+
+    /* --- Results area inside big card --- */
+    .results-block{
+      margin-top:4px;
+      padding-top:6px;
+      border-top:1px solid #e3e3e3;
+    }
+    .results-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap:8px 24px;
+      padding:4px 0 2px;
+      font-size:13px;
+    }
+    .results-column{
+      border-radius:8px;
+      background:#fafafa;
+      padding:6px 9px;
+    }
+    .results-subtitle{
+      font-weight:600;
+      margin-bottom:6px;
+    }
+
+    /* Two-column layout inside "Test results" */
+    .results-test-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap:4px 16px;
+    }
+    .results-test-column{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .results-row{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      padding:2px 0;
+    }
+    .results-label{
+      font-weight:500;
+      margin-bottom:1px;
+    }
+    .results-value{
+      font-variant-numeric:tabular-nums;
+      padding-left:2px;
+    }
+    .results-row.output .results-value{
+      background:#e5f5e0;
+      border-radius:4px;
+      padding:2px 6px;
+      display:inline-block;
+      margin-top:1px;
+    }
+
+    /* --- Viz layout --- */
+    .viz{
+      display:flex;
+      gap:16px;
+      padding:10px 20px 6px;
+      align-items:stretch;      /* equal height cards */
+    }
+
+    .viz .card{
+      flex:1;                  /* 50/50 width split */
+    }
+    .card{
+      border:1px solid #ddd;
+      border-radius:12px;
+      padding:12px 12px 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      background:#fff;
+    }
+    .row{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+    .legend{
+      font-size:12px;
+      line-height:1.3;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-left:12px;
+      margin-right:6px;
+    }
+    .legend-item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .swatch{
+      width:14px; height:14px;
+      border:1px solid #00000020;
+      border-radius:3px;
+      flex:0 0 14px;
+      opacity: 0.7;
+    }
+    .swatch.total{ background: rgba(127,127,127,.25); border-color:#7f7f7f40; }
+    .swatch.tn{ background: var(--blue); }
+    .swatch.fn{ background: var(--purple);}
+    .swatch.tp{ background: var(--red);}
+    .swatch.fp{ background: var(--green);}
+
+    .grid line{ stroke: var(--grid); stroke-width:1; }
+    .axis path, .axis line{ stroke: var(--axis); stroke-width:1; shape-rendering:crispEdges; }
+    .axis text{ fill:#333; font-size:12px; }
+
+    .panel-title{
+      font-size:14px;
+      font-weight:600;
+      margin: 0 0 6px 4px;
+    }
+    .smallnote{ font-size:12px; color:#666; margin: 6px 0 0 4px;}
+
+    .axis-label{
+      font-size:12px;
+      fill:#333;
+    }
+    .formula-card{
+      margin:0;
+      border:1px solid #ddd;
+      border-radius:12px;
+      padding:10px 14px 12px;
+      box-shadow:0 1px 3px rgba(0,0,0,0.04);
+      background:#fff;
+    }
+    .formula-header{
+      font-size:13px;
+      font-weight:600;
+      margin-bottom:6px;
+    }
+
+    .formula-selector{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:8px;
+      margin-bottom:8px;
+      padding:6px 10px;
+      background:#fff;
+    }
+
+    /* Make the test-statistics toggles look like the viz toggle buttons */
+    .metric-pill{
+        position: relative;
+        width: 100%;
+        padding: 0;                 /* visual padding moved to span */
+        border: none;               /* border handled on inner span */
+        background: transparent;
+        cursor: pointer;
+    }
+
+    /* Hide the native radio circle */
+    .metric-pill input{
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+        margin: 0;
+    }
+
+    /* The actual pill look */
+    .metric-pill span{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+
+        width: 100%;
+        padding: 4px 8px;           /* keeps the same size you liked */
+        box-sizing: border-box;
+
+        border: 1px solid #ccc;
+        border-radius: 999px;
+        background: #f5f5f5;
+        font-size: 13px;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    /* When selected: blue highlight, stronger border, bold text */
+        .metric-pill input:checked + span{
+        background: #e0f2ff;        /* same feel as viz-toggle-btn.active */
+        border-color: #1f77b4;
+        font-weight: 600;
+    }
+
+    /* Layout for the abstract & numeric pieces */
+    .formula-body{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap:8px 16px;
+      font-size:12px;
+      align-items:stretch;
+    }
+
+    .formula-block{
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-start;
+      height:100%;
+    }
+
+    .formula-section-title{
+      font-weight:600;
+      margin-bottom:15px;
+    }
+    .formula-numeric{
+      font-variant-numeric: tabular-nums;
+    }
+
+    .formula-equation{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      margin-bottom:15px;
+    }
+
+    .fraction{
+      display:inline-flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    .frac-num,
+    .frac-den{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .frac-bar{
+      border-top:1.5px solid #333;
+      width:100%;
+      margin:1px 0;
+    }
+
+    .formula-numeric .fraction{
+      margin: 0 4px;
+    }
+
+    .den-row{
+      display:flex;
+      align-items:center;
+      gap:4px;
+    }
+
+    .den-plus{
+      font-size:12px;
+    }
+
+    .formula-rect{
+      display:inline-block;
+      border-radius:3px;
+      border:1px solid #00000033;
+      vertical-align:middle;
+      opacity:0.7;
+    }
+
+    .formula-rect.tp{ background: var(--red); }
+    .formula-rect.fp{ background: var(--green); }
+    .formula-rect.tn{ background: var(--blue); }
+    .formula-rect.fn{ background: var(--purple); }
+
+    .bottom-row{
+      display:flex;
+      gap:16px;
+      padding:10px 20px 24px;
+      align-items:stretch;
+    }
+
+    .bottom-row .controls-card,
+    .bottom-row .formula-card{
+      flex:1;
+    }
+
+    .roc-card{
+      margin:0 20px 24px;
+      border:1px solid #ddd;
+      border-radius:12px;
+      padding:10px 14px 12px;
+      box-shadow:0 1px 3px rgba(0,0,0,0.04);
+      background:#fff;
+      font-size:12px;
+    }
+
+    .roc-card-inner{
+      display:grid;
+      grid-template-columns:minmax(280px, 420px) minmax(280px, 1fr);
+      gap:16px;
+      align-items:start;
+    }
+
+    .roc-plot-wrap{
+      max-width:420px;
+    }
+
+    .roc-summary{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:8px;
+      margin:6px 0 10px;
+      font-size:12px;
+      color:#444;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .roc-summary-item{
+      background:#fafafa;
+      border:1px solid #eee;
+      border-radius:8px;
+      padding:6px 8px;
+    }
+
+    .roc-summary-item strong{
+      display:block;
+      font-weight:600;
+      margin-bottom:2px;
+    }
+
+    .roc-control-block{
+      border-radius:8px;
+      background:#fafafa;
+      padding:8px 10px 10px;
+      margin-top:8px;
+    }
+
+    .roc-control-header{
+      font-size:13px;
+      font-weight:600;
+      margin-bottom:6px;
+    }
+
+    .roc-control-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap:8px 16px;
+    }
+
+    .roc-control-row{
+      display:grid;
+      grid-template-columns:110px minmax(0, 1fr) 56px;
+      gap:8px;
+      align-items:center;
+    }
+
+    .roc-control-row label{
+      white-space:nowrap;
+      font-weight:500;
+    }
+
+    .roc-control-row input[type="number"],
+    .roc-control-row input[type="range"]{
+      width:100%;
+      box-sizing:border-box;
+    }
+
+    .roc-control-value{
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .roc-note{
+      font-size:12px;
+      color:#666;
+      margin-top:8px;
+      line-height:1.35;
+    }
+
+    /* Optional: smaller font for bracket labels */
+    .area-label{
+      font-size:11px;
+      fill:#333;
+    }
+
+    /* --- Mobile viz toggle --- */
+    .viz-toggle{
+      display:none; /* shown only on small screens */
+      gap:8px;
+      padding:8px 20px 0;
+    }
+    .viz-toggle-btn{
+      flex:1;
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid #ccc;
+      background:#f5f5f5;
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
+      text-align:center;
+      line-height:1.2;
+    }
+    .viz-toggle-btn.active{
+      background:#e0f2ff;
+      border-color:#1f77b4;
+    }
+
+    /* --- Responsive adjustments --- */
+    @media (max-width: 800px){
+      header{
+        padding:10px 12px 0;
+      }
+      h1{
+        font-size:16px;
+      }
+
+      .viz,
+      .bottom-row{
+        flex-direction:column;
+        padding:8px 10px 4px;
+      }
+
+      .roc-card{
+        margin:0 10px 16px;
+      }
+
+      .roc-card-inner{
+        grid-template-columns:minmax(0, 1fr);
+      }
+
+      .roc-summary{
+        grid-template-columns:minmax(0, 1fr);
+      }
+
+      .roc-control-grid{
+        grid-template-columns:minmax(0, 1fr);
+      }
+
+      .roc-control-row{
+        grid-template-columns:105px minmax(0, 1fr) 52px;
+      }
+
+      .controls-grid{
+        grid-template-columns: minmax(0,1fr); /* sliders stack */
+      }
+
+      .results-grid{
+        grid-template-columns: minmax(0,1fr);
+      }
+
+      .formula-body{
+        grid-template-columns: minmax(0,1fr);
+      }
+
+      .formula-selector{
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .viz-toggle{
+        display:flex;
+        padding:8px 10px 0;
+      }
+    }
+
+    @media (min-width: 801px) and (max-width: 1200px){
+        .viz,
+        .bottom-row{
+            flex-direction: column;
+            padding: 10px 20px 6px;  /* keep desktop-ish padding */
+        }
+
+        /* Optional: let cards breathe a bit vertically */
+        .viz .card,
+        .bottom-row .controls-card,
+        .bottom-row .formula-card{
+            max-width: 100%;
+        }
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Diagnostic Testing Simulator</h1>
+  </header>
+
+  <!-- Viz section -->
+  <section class="viz">
+    <div class="card" id="gauss-card">
+      <div class="row">
+        <div>
+          <div class="panel-title">Distribution of Test Results</div>
+          <div id="gauss"></div>
+          <div class="smallnote">Cutoff line is bold; gray overlay shows total (healthy + diseased).</div>
+        </div>
+        <div class="legend" aria-label="Legend">
+          <div class="legend-item"><span class="swatch tn"></span> True Negative</div>
+          <div class="legend-item"><span class="swatch fn"></span> False Negative</div>
+          <div class="legend-item"><span class="swatch tp"></span> True Positive</div>
+          <div class="legend-item"><span class="swatch fp"></span> False Positive</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="areas-card">
+      <div class="row">
+        <div>
+          <div class="panel-title">Population Area Diagram</div>
+          <div id="areas"></div>
+          <div class="smallnote">Widths reflect prevalence; heights reflect sensitivity/specificity.</div>
+        </div>
+        <div class="legend" aria-label="Legend">
+          <div class="legend-item"><span class="swatch tn"></span> True Negative</div>
+          <div class="legend-item"><span class="swatch fn"></span> False Negative</div>
+          <div class="legend-item"><span class="swatch tp"></span> True Positive</div>
+          <div class="legend-item"><span class="swatch fp"></span> False Positive</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- Mobile viz toggle -->
+  <div class="viz-toggle" aria-label="Choose visualization">
+    <button type="button" class="viz-toggle-btn active" data-target="gauss">
+      Test Results Distribution
+    </button>
+    <button type="button" class="viz-toggle-btn" data-target="areas">
+      Population Area Diagram
+    </button>
+  </div>
+
+  <section class="bottom-row">
+    <!-- Big controls + calculations card now at the bottom -->
+    <section class="controls-card">
+
+      <!-- Test parameters block -->
+      <div class="controls-block">
+        <div class="controls-block-header">Test parameters</div>
+        <div class="controls-grid">
+          <div class="slider-row">
+            <label for="sens">Sensitivity:</label>
+            <input type="range" id="sens" min="0.1" max="99.9" step="0.1" value="90">
+            <span id="sens-val" class="value-pill">90.0%</span>
+          </div>
+
+          <div class="slider-row">
+            <label for="spec">Specificity:</label>
+            <input type="range" id="spec" min="0.1" max="99.9" step="0.1" value="90">
+            <span id="spec-val" class="value-pill">90.0%</span>
+          </div>
+
+          <div class="slider-row">
+            <label for="cutoff">Cutoff:</label>
+            <input type="range" id="cutoff" min="-6" max="6" step="0.1" value="0">
+            <span class="value-pill">&nbsp;</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Population parameters block -->
+      <div class="controls-block">
+        <div class="controls-block-header">Population parameters</div>
+        <div class="controls-grid">
+          <div class="slider-row">
+            <label for="population">Population:</label>
+            <input type="number" id="population" min="1" step="1" value="100000">
+            <span class="value-pill">&nbsp;</span>
+          </div>
+          <div class="slider-row">
+            <label for="prevalence">Prevalence (%):</label>
+            <input type="range" id="prevalence" min="0.1" max="50" step="0.1" value="5.0">
+            <span class="value-pill" id="prevalence-val">5.0%</span>
+          </div>
+          <div></div>
+          <div></div>
+        </div>
+      </div>
+
+      <!-- Counts / output block -->
+      <div class="controls-block results-block">
+        <div class="results-grid">
+          <!-- Test results column -->
+          <div class="results-column">
+            <div class="results-subtitle">Test results</div>
+            <div class="results-test-grid">
+              <!-- Diseased side -->
+              <div class="results-test-column">
+                <div class="results-row output">
+                  <span class="results-label">Diseased</span>
+                  <span class="results-value" id="res-diseased">–</span>
+                </div>
+                <div class="results-row output">
+                  <span class="results-label">True positive</span>
+                  <span class="results-value" id="res-tp">–</span>
+                </div>
+                <div class="results-row output">
+                  <span class="results-label">False negative</span>
+                  <span class="results-value" id="res-fn">–</span>
+                </div>
+              </div>
+              <!-- Healthy side -->
+              <div class="results-test-column">
+                <div class="results-row output">
+                  <span class="results-label">Healthy</span>
+                  <span class="results-value" id="res-healthy">–</span>
+                </div>
+                <div class="results-row output">
+                  <span class="results-label">True negative</span>
+                  <span class="results-value" id="res-tn">–</span>
+                </div>
+                <div class="results-row output">
+                  <span class="results-label">False positive</span>
+                  <span class="results-value" id="res-fp">–</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Output column -->
+          <div class="results-column">
+            <div class="results-subtitle">Output</div>
+            <div class="results-row output">
+              <span class="results-label">Accuracy</span>
+              <span class="results-value" id="res-acc">–</span>
+            </div>
+            <div class="results-row output">
+              <span class="results-label">Positive predictive value</span>
+              <span class="results-value" id="res-ppv">–</span>
+            </div>
+            <div class="results-row output">
+              <span class="results-label">Negative predictive value</span>
+              <span class="results-value" id="res-npv">–</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="formula-card">
+      <div class="formula-header">Test Statistics</div>
+
+      <div class="formula-selector">
+        <label class="metric-pill">
+          <input type="radio" name="metric" value="sensitivity">
+          <span>Sensitivity</span>
+        </label>
+        <label class="metric-pill">
+          <input type="radio" name="metric" value="specificity">
+          <span>Specificity</span>
+        </label>
+        <label class="metric-pill">
+          <input type="radio" name="metric" value="ppv" checked>
+          <span>PPV</span>
+        </label>
+        <label class="metric-pill">
+          <input type="radio" name="metric" value="npv">
+          <span>NPV</span>
+        </label>
+      </div>
+
+      <div class="formula-body">
+        <div class="formula-block">
+          <div class="formula-section-title">Abstract formula (proportions)</div>
+          <div id="formula-abstract"></div>
+          <div id="formula-abstract-two"></div>
+        </div>
+
+        <div class="formula-block">
+          <div class="formula-section-title">Using current population</div>
+          <div id="formula-numeric" class="formula-numeric"></div>
+        </div>
+      </div>
+
+    </section>
+  </section>
+  <section class="roc-card">
+    <div class="roc-card-inner">
+      <div class="roc-plot-wrap">
+        <div class="panel-title">Receiver Operating Characteristic (ROC) Curve</div>
+        <div id="roc"></div>
+        <div class="smallnote">Each point represents a possible cutoff. The highlighted point is the current cutoff.</div>
+      </div>
+
+      <div class="roc-details">
+        <div class="roc-summary">
+          <div class="roc-summary-item"><strong>AUC</strong><span id="roc-auc">–</span></div>
+          <div class="roc-summary-item"><strong>FPR</strong><span id="roc-fpr">–</span></div>
+          <div class="roc-summary-item"><strong>TPR</strong><span id="roc-tpr">–</span></div>
+        </div>
+
+        <div class="roc-control-block">
+          <div class="roc-control-header">Adjust cutoff</div>
+          <div class="roc-control-row">
+            <label for="roc-cutoff">Cutoff:</label>
+            <input type="range" id="roc-cutoff" min="-6" max="6" step="0.1" value="0">
+            <span class="roc-control-value" id="roc-cutoff-val">0.0</span>
+          </div>
+        </div>
+
+        <div class="roc-control-block">
+          <div class="roc-control-header">Distribution parameters</div>
+          <div class="roc-control-grid">
+            <div class="roc-control-row">
+              <label for="mean-healthy">Healthy mean:</label>
+              <input type="number" id="mean-healthy" step="0.1" value="-2">
+              <span class="roc-control-value">μ</span>
+            </div>
+            <div class="roc-control-row">
+              <label for="mean-diseased">Diseased mean:</label>
+              <input type="number" id="mean-diseased" step="0.1" value="2">
+              <span class="roc-control-value">μ</span>
+            </div>
+            <div class="roc-control-row">
+              <label for="sd-healthy">Healthy SD:</label>
+              <input type="number" id="sd-healthy" min="0.1" step="0.1" value="1.5">
+              <span class="roc-control-value">σ</span>
+            </div>
+            <div class="roc-control-row">
+              <label for="sd-diseased">Diseased SD:</label>
+              <input type="number" id="sd-diseased" min="0.1" step="0.1" value="1.5">
+              <span class="roc-control-value">σ</span>
+            </div>
+          </div>
+          <div class="roc-note">Changing means or standard deviations changes the overlap between distributions and therefore changes the ROC curve and AUC.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div style="
+      margin-top: 40px;
+      margin-bottom: 40px;
+      font-size: 0.85rem;
+      color: #000;
+      text-align: center;
+      line-height: 1.4;
+    ">
+      <em>
+        The user input panel in this demonstration was modeled after the 
+        <strong>Disease Screening Interpretation Calculator</strong> developed by the 
+        Penn School of Dental Medicine.  
+        <br>
+        https://www.dental.upenn.edu/research/center-for-integrative-global-oral-health/education/disease-screening-interpretation/
+      </em>
+    </div>
+
+  <script>
+    // ------- Shared state
+    let sensitivity = 0, specificity = 0, prevalence = 0.05;
+    let currentCutoff = 0;
+    let lastCounts = {TP:0, FN:0, TN:0, FP:0};
+
+    let lastAreas = {
+      TP: {w:0, h:0},
+      FN: {w:0, h:0},
+      TN: {w:0, h:0},
+      FP: {w:0, h:0},
+    };
+
+    // ------- Plot configs
+    const margin = {top: 8, right: 8, bottom: 28, left: 42};
+    const W = 600, H = 400;
+    const innerW = W - margin.left - margin.right;
+    const innerH = H - margin.top - margin.bottom;
+
+    const x = d3.scaleLinear().domain([-10, 10]).range([0, innerW]);
+    const y = d3.scaleLinear().domain([0, 24000]).range([innerH, 0]);
+
+    const xAxis = g => g
+      .attr("class","axis")
+      .attr("transform", `translate(0,${innerH})`)
+      .call(d3.axisBottom(x).tickFormat(() => ""));
+    const yAxis = g => g
+      .attr("class","axis")
+      .call(d3.axisLeft(y).tickFormat(() => ""));
+
+    const xGrid = g => g
+      .attr("class","grid")
+      .attr("transform", `translate(0,${innerH})`)
+      .call(d3.axisBottom(x).tickSize(-innerH).tickFormat(""))
+      .selectAll("line").attr("stroke-dasharray","2,2");
+    const yGrid = g => g
+      .attr("class","grid")
+      .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(""))
+      .selectAll("line").attr("stroke-dasharray","2,2");
+
+    const area = d3.area()
+      .x(d => x(d.x))
+      .y0(innerH)
+      .y1(d => y(d.y));
+
+    // ------- Gaussian figure (responsive SVG)
+    const svgG = d3.select("#gauss").append("svg")
+      .attr("viewBox", `0 0 ${W} ${H}`)
+      .style("width","100%")
+      .style("height","auto");
+    const gG = svgG.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const gXGrid = gG.append("g").call(xGrid);
+    const gYGrid = gG.append("g").call(yGrid);
+    const gXAxis = gG.append("g").call(xAxis);
+    const gYAxis = gG.append("g").call(yAxis);
+
+    // Axis labels
+    svgG.append("text")
+      .attr("class","axis-label")
+      .attr("x", margin.left)
+      .attr("y", H - 6)
+      .attr("text-anchor","start")
+      .text("Lower test values");
+
+    svgG.append("text")
+      .attr("class","axis-label")
+      .attr("x", W - margin.right)
+      .attr("y", H - 6)
+      .attr("text-anchor","end")
+      .text("Higher test values");
+
+    svgG.append("text")
+      .attr("class","axis-label")
+      .attr("transform", `translate(12, ${margin.top + innerH/2}) rotate(-90)`)
+      .attr("text-anchor","middle")
+      .text("Number of individuals");
+
+    const pTotal = gG.append("path")
+      .attr("fill", "rgba(127,127,127,0.25)")
+      .attr("stroke","none");
+
+    const pTN = gG.append("path")
+      .attr("fill", getComputedStyle(document.documentElement).getPropertyValue('--blue').trim())
+      .attr("fill-opacity", 0.7);
+
+    const pFP = gG.append("path")
+      .attr("fill", getComputedStyle(document.documentElement).getPropertyValue('--green').trim())
+      .attr("fill-opacity", 0.7);
+
+    const pFN = gG.append("path")
+      .attr("fill", getComputedStyle(document.documentElement).getPropertyValue('--purple').trim())
+      .attr("fill-opacity", 0.7);
+
+    const pTP = gG.append("path")
+      .attr("fill", getComputedStyle(document.documentElement).getPropertyValue('--red').trim())
+      .attr("fill-opacity", 0.7);
+
+
+    const cutoffLine = gG.append("line")
+      .attr("y1", y(30000)).attr("y2", y(0))
+      .attr("stroke", "black").attr("stroke-width", 2.5);
+
+    // ------- Area rectangles figure (responsive SVG, SHRUNK inner area for labels)
+    const AW = 460, AH = 360;
+    const Am = {top: 30, right: 100, bottom: 60, left: 100};  // big margins for brackets/labels
+    const Asvg = d3.select("#areas").append("svg")
+      .attr("viewBox", `0 0 ${AW} ${AH}`)
+      .style("width","100%")
+      .style("height","auto");
+    const Ag = Asvg.append("g").attr("transform", `translate(${Am.left},${Am.top})`);
+    const AinnerW = AW - Am.left - Am.right;
+    const AinnerH = AH - Am.top - Am.bottom;
+
+    const Ax = d3.scaleLinear().domain([0,1]).range([0, AinnerW]);
+    const Ay = d3.scaleLinear().domain([0,1]).range([AinnerH, 0]);
+
+    const colors = window.getComputedStyle(document.documentElement);
+    const rFN = Ag.append("rect").attr("fill", colors.getPropertyValue('--purple').trim()).attr("stroke","#000").attr("stroke-width",1).attr("fill-opacity",0.7);
+    const rTP = Ag.append("rect").attr("fill", colors.getPropertyValue('--red').trim()).attr("stroke","#000").attr("stroke-width",1).attr("fill-opacity",0.7);
+    const rTN = Ag.append("rect").attr("fill", colors.getPropertyValue('--blue').trim()).attr("stroke","#000").attr("stroke-width",1).attr("fill-opacity",0.7);
+    const rFP = Ag.append("rect").attr("fill", colors.getPropertyValue('--green').trim()).attr("stroke","#000").attr("stroke-width",1).attr("fill-opacity",0.7);
+
+    // --- Bracket paths + labels ---
+
+    // Left-side vertical brackets (Sensitivity and 1 - Sensitivity)
+    const brSens = Ag.append("path").attr("stroke","#333").attr("fill","none").attr("stroke-width",1.5);
+    const brOneMinusSens = Ag.append("path").attr("stroke","#333").attr("fill","none").attr("stroke-width",1.5);
+
+    const lblSens = Ag.append("text")
+      .attr("class","area-label")
+      .attr("text-anchor","end");
+
+    const lblOneMinusSens = Ag.append("text")
+      .attr("class","area-label")
+      .attr("text-anchor","end");
+
+    // Right-side vertical brackets (Specificity and 1 - Specificity)
+    const brSpec = Ag.append("path").attr("stroke","#333").attr("fill","none").attr("stroke-width",1.5);
+    const brOneMinusSpec = Ag.append("path").attr("stroke","#333").attr("fill","none").attr("stroke-width",1.5);
+
+    const lblSpec = Ag.append("text")
+      .attr("class","area-label")
+      .attr("text-anchor","start");
+
+    const lblOneMinusSpec = Ag.append("text")
+      .attr("class","area-label")
+      .attr("text-anchor","start");
+
+    // Bottom horizontal brackets (Prevalence and 1 - Prevalence)
+    const brPrev = Ag.append("path").attr("stroke","#333").attr("fill","none").attr("stroke-width",1.5);
+    const brOneMinusPrev = Ag.append("path").attr("stroke","#333").attr("fill","none").attr("stroke-width",1.5);
+
+    const lblPrev = Ag.append("text")
+      .attr("class","area-label")
+      .attr("text-anchor","middle");
+
+    const lblOneMinusPrev = Ag.append("text")
+      .attr("class","area-label")
+      .attr("text-anchor","middle");
+
+    // ------- ROC figure
+    const RW = 420, RH = 420;
+    const Rm = {top: 24, right: 24, bottom: 54, left: 54};
+    const RinnerW = RW - Rm.left - Rm.right;
+    const RinnerH = RH - Rm.top - Rm.bottom;
+
+    const Rx = d3.scaleLinear().domain([0, 1]).range([0, RinnerW]);
+    const Ry = d3.scaleLinear().domain([0, 1]).range([RinnerH, 0]);
+
+    const Rsvg = d3.select("#roc").append("svg")
+      .attr("viewBox", `0 0 ${RW} ${RH}`)
+      .style("width", "100%")
+      .style("height", "auto");
+
+    const Rg = Rsvg.append("g")
+      .attr("transform", `translate(${Rm.left},${Rm.top})`);
+
+    Rg.append("g")
+      .attr("class", "grid")
+      .attr("transform", `translate(0,${RinnerH})`)
+      .call(d3.axisBottom(Rx).ticks(6).tickSize(-RinnerH).tickFormat(""))
+      .selectAll("line").attr("stroke-dasharray", "2,2");
+
+    Rg.append("g")
+      .attr("class", "grid")
+      .call(d3.axisLeft(Ry).ticks(6).tickSize(-RinnerW).tickFormat(""))
+      .selectAll("line").attr("stroke-dasharray", "2,2");
+
+    Rg.append("g")
+      .attr("class", "axis")
+      .attr("transform", `translate(0,${RinnerH})`)
+      .call(d3.axisBottom(Rx).ticks(6).tickFormat(d3.format(".1f")));
+
+    Rg.append("g")
+      .attr("class", "axis")
+      .call(d3.axisLeft(Ry).ticks(6).tickFormat(d3.format(".1f")));
+
+    Rsvg.append("text")
+      .attr("class", "axis-label")
+      .attr("x", Rm.left + RinnerW/2)
+      .attr("y", RH - 10)
+      .attr("text-anchor", "middle")
+      .text("False positive rate (1 − specificity)");
+
+    Rsvg.append("text")
+      .attr("class", "axis-label")
+      .attr("transform", `translate(16, ${Rm.top + RinnerH/2}) rotate(-90)`)
+      .attr("text-anchor", "middle")
+      .text("True positive rate (sensitivity)");
+
+    Rg.append("line")
+      .attr("x1", Rx(0)).attr("y1", Ry(0))
+      .attr("x2", Rx(1)).attr("y2", Ry(1))
+      .attr("stroke", "#999")
+      .attr("stroke-dasharray", "5,5")
+      .attr("stroke-width", 1.5);
+
+    const rocLine = d3.line()
+      .x(d => Rx(d.fpr))
+      .y(d => Ry(d.tpr));
+
+    const rocPath = Rg.append("path")
+      .attr("fill", "none")
+      .attr("stroke", "#1f77b4")
+      .attr("stroke-width", 2.5);
+
+    const rocPoint = Rg.append("circle")
+      .attr("r", 5)
+      .attr("fill", "#d62728")
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1.5);
+
+    const rocPointLabel = Rg.append("text")
+      .attr("class", "area-label")
+      .attr("dx", 8)
+      .attr("dy", -8)
+      .text("current");
+
+    // ------- Math helpers
+    function gaussian(n, x, mean, sigma) {
+      return ( n / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / sigma, 2));
+    }
+    function integrate(series){
+      let area=0;
+      for(let i=1;i<series.length;i++){
+        const dx = series[i].x - series[i-1].x;
+        area += 0.5 * (series[i].y + series[i-1].y) * dx;
+      }
+      return area;
+    }
+    function areaRatioCalculator(leftSeg, rightSeg){
+      const a1 = integrate(leftSeg);
+      const a2 = integrate(rightSeg);
+      return (a1 + a2) === 0 ? 0 : a1 / (a1 + a2);
+    }
+
+    function computeSensSpecForCutoff(cutoff, params){
+      const {prevalence, meanHealthy, meanDisease, sdHealthy, sdDisease} = params;
+
+      // Use a fixed internal scale so curves don't change with Population setting
+      const sickPop    = TOTAL_SCALE * prevalence;
+      const healthyPop = TOTAL_SCALE - sickPop;
+
+      const left  = d3.range(XMIN,  cutoff + DX, DX);
+      const right = d3.range(cutoff, XMAX + DX, DX);
+
+      const dataHealthyLeft  = left.map(x => ({x, y: gaussian(healthyPop, x, meanHealthy, sdHealthy)}));
+      const dataHealthyRight = right.map(x => ({x, y: gaussian(healthyPop, x, meanHealthy, sdHealthy)}));
+      const dataDiseaseLeft  = left.map(x => ({x, y: gaussian(sickPop,    x, meanDisease, sdDisease)}));
+      const dataDiseaseRight = right.map(x => ({x, y: gaussian(sickPop,   x, meanDisease, sdDisease)}));
+
+      const specificity = areaRatioCalculator(dataHealthyLeft, dataHealthyRight);
+      const sensitivity = areaRatioCalculator(dataDiseaseRight, dataDiseaseLeft);
+
+      return {
+        sensitivity,
+        specificity,
+        segments: {dataHealthyLeft, dataHealthyRight, dataDiseaseLeft, dataDiseaseRight}
+      };
+    }
+
+    function computeRocData(params){
+      const points = [];
+
+      // Start at a very high cutoff near (0,0), then move toward a very low cutoff near (1,1).
+      for(let c = XMAX; c >= XMIN; c -= DX){
+        const {sensitivity: tpr, specificity: spec} = computeSensSpecForCutoff(c, params);
+        points.push({cutoff: c, tpr, fpr: 1 - spec});
+      }
+
+      // Ensure the plotted curve and AUC calculation run left-to-right.
+      points.sort((a,b) => a.fpr - b.fpr || a.tpr - b.tpr);
+
+      let auc = 0;
+      for(let i = 1; i < points.length; i++){
+        const dx = points[i].fpr - points[i-1].fpr;
+        const avgY = 0.5 * (points[i].tpr + points[i-1].tpr);
+        auc += dx * avgY;
+      }
+
+      return {points, auc};
+    }
+
+    function updateRocCurve(params, currentSensitivity, currentSpecificity){
+      const {points, auc} = computeRocData(params);
+      const currentFpr = 1 - currentSpecificity;
+      const currentTpr = currentSensitivity;
+
+      rocPath.datum(points).attr("d", rocLine);
+
+      rocPoint
+        .attr("cx", Rx(currentFpr))
+        .attr("cy", Ry(currentTpr));
+
+      rocPointLabel
+        .attr("x", Rx(currentFpr))
+        .attr("y", Ry(currentTpr));
+
+      const fmt3 = x => isNaN(x) ? "–" : x.toFixed(3);
+      document.getElementById("roc-auc").textContent = fmt3(auc);
+      document.getElementById("roc-fpr").textContent = fmt3(currentFpr);
+      document.getElementById("roc-tpr").textContent = fmt3(currentTpr);
+    }
+
+    function updateResultsCard(N, prevalence, sensitivity, specificity){
+      const diseased = N * prevalence;
+      const healthy  = N - diseased;
+
+      const TP = diseased * sensitivity;
+      const FN = diseased * (1 - sensitivity);
+      const TN = healthy  * specificity;
+      const FP = healthy  * (1 - specificity);
+
+      const accuracy = (TP + TN) / N;
+      const PPV = (TP + FP) > 0 ? TP / (TP + FP) : NaN;
+      const NPV = (TN + FN) > 0 ? TN / (TN + FN) : NaN;
+
+      const fmtCount = x => Math.round(x).toLocaleString();
+      const fmtPct = x => isNaN(x) ? "–" : (x*100).toFixed(1) + "%";
+
+      document.getElementById("res-diseased").textContent = fmtCount(diseased);
+      document.getElementById("res-healthy").textContent  = fmtCount(healthy);
+      document.getElementById("res-tp").textContent       = fmtCount(TP);
+      document.getElementById("res-fp").textContent       = fmtCount(FP);
+      document.getElementById("res-fn").textContent       = fmtCount(FN);
+      document.getElementById("res-tn").textContent       = fmtCount(TN);
+
+      document.getElementById("res-acc").textContent  = fmtPct(accuracy);
+      document.getElementById("res-ppv").textContent  = fmtPct(PPV);
+      document.getElementById("res-npv").textContent  = fmtPct(NPV);
+
+      // Save counts for the formula card
+      lastCounts = {TP, FN, TN, FP};
+
+      // Refresh the formula card for the currently selected metric
+      updateFormulaDisplay();
+    }
+
+    function updateFormulaDisplay(){
+      const metricInput = document.querySelector('input[name="metric"]:checked');
+      if (!metricInput) return;
+
+      const metric = metricInput.value;
+      const {TP, FN, TN, FP} = lastCounts;
+      const abstractDiv = document.getElementById("formula-abstract");
+      const abstractDivTwo = document.getElementById("formula-abstract-two");
+      const numericDiv  = document.getElementById("formula-numeric");
+      if (!abstractDiv || !numericDiv) return;
+
+      const fmtCount = x => Math.round(x).toLocaleString();
+      const fmtPct = x => isNaN(x) ? "–" : (x*100).toFixed(1) + "%";
+
+      const metricDefs = {
+        sensitivity: {
+          short: "Sensitivity",
+          long:  "Sensitivity",
+          numKey: "TP",
+          denKeys: ["TP", "FN"],
+          numLabel: "TP",
+          denLabel1: "TP",
+          denLabel2: "FN",
+        },
+        specificity: {
+          short: "Specificity",
+          long:  "Specificity",
+          numKey: "TN",
+          denKeys: ["TN", "FP"],
+          numLabel: "TN",
+          denLabel1: "TN",
+          denLabel2: "FP",
+        },
+        ppv: {
+          short: "PPV",
+          long:  "PPV",
+          numKey: "TP",
+          denKeys: ["TP", "FP"],
+          numLabel: "TP",
+          denLabel1: "TP",
+          denLabel2: "FP",
+        },
+        npv: {
+          short: "NPV",
+          long:  "NPV",
+          numKey: "TN",
+          denKeys: ["TN", "FN"],
+          numLabel: "TN",
+          denLabel1: "TN",
+          denLabel2: "FN",
+        },
+      };
+
+      const def = metricDefs[metric];
+      if (!def) return;
+
+      const counts = {TP, FN, TN, FP};
+      const numValue   = counts[def.numKey];
+      const denValue1  = counts[def.denKeys[0]];
+      const denValue2  = counts[def.denKeys[1]];
+      const denominatorTotal = denValue1 + denValue2;
+      const value = denominatorTotal > 0 ? numValue / denominatorTotal : NaN;
+
+      const keyToClass = k => k.toLowerCase();
+
+      function rectHTML(key){
+        const a = lastAreas[key];
+        if (!a) return "";
+
+        const SCALE = 0.25;
+        const MIN   = 8;
+
+        const width  = Math.max(MIN, a.h * SCALE);
+        const height = Math.max(MIN, a.w * SCALE);
+
+        return `<span class="formula-rect ${keyToClass(key)}"
+                      style="width:${width}px;height:${height}px;"></span>`;
+      }
+
+      const numRectHTML   = rectHTML(def.numKey);
+      const denRect1HTML  = rectHTML(def.denKeys[0]);
+      const denRect2HTML  = rectHTML(def.denKeys[1]);
+
+      abstractDiv.innerHTML =
+        `<div class="formula-equation">
+          <span>${def.short} =</span>
+          <span class="fraction">
+            <span class="frac-num">${numRectHTML}</span>
+            <span class="frac-bar"></span>
+            <span class="frac-den">
+              <span class="den-row">
+                ${denRect1HTML}
+                <span class="den-plus">+</span>
+                ${denRect2HTML}
+              </span>
+            </span>
+          </span>
+        </div>`;
+
+      // ----- 1) Rectangles-based abstract formula -----
+      if (denominatorTotal > 0){
+        // ----- 3) Extra Bayes-style rows for PPV and NPV -----
+        let bayesHTML = "";
+
+        const sensDec = sensitivity;   // 0–1
+        const specDec = specificity;   // 0–1
+        const prevDec = prevalence;    // 0–1
+        const oneMinusPrev = 1 - prevDec;
+
+        if (metric === "ppv") {
+          // PPV = (Sens * Prev) / [Sens * Prev + (1 - Spec)*(1 - Prev)]
+          const num = sensDec * prevDec;
+          const den = num + (1 - specDec) * oneMinusPrev;
+          const bayesVal = den > 0 ? num / den : NaN;
+
+          bayesHTML = `
+            <div class="formula-equation formula-numeric">
+              <span>=</span>
+              <span class="fraction">
+                <span class="frac-num">(Sens)(Prev)</span>
+                <span class="frac-bar"></span>
+                <span class="frac-den">
+                  (Sens)(Prev)
+                  &nbsp;+&nbsp;
+                  (1 − Spec)(1 − Prev)
+                </span>
+              </span>
+            </div>
+            <div class="formula-equation formula-numeric">
+              <span>=</span>
+              <span class="fraction">
+                <span class="frac-num">(${sensDec.toFixed(3)})(${prevDec.toFixed(3)})</span>
+                <span class="frac-bar"></span>
+                <span class="frac-den">
+                  (${sensDec.toFixed(3)})(${prevDec.toFixed(3)})
+                  &nbsp;+&nbsp;
+                  (1 − ${specDec.toFixed(3)})(1 − ${prevDec.toFixed(3)})
+                </span>
+              </span>
+            </div>
+            <div class="formula-equation formula-numeric">
+              <span>≈ ${fmtPct(bayesVal)}</span>
+            </div>
+          `;
+          abstractDivTwo.innerHTML = bayesHTML;
+        } else if (metric === "npv") {
+          // NPV = [Spec * (1 - Prev)] / [(1 - Sens)*Prev + Spec*(1 - Prev)]
+          const num = specDec * oneMinusPrev;
+          const den = (1 - sensDec) * prevDec + specDec * oneMinusPrev;
+          const bayesVal = den > 0 ? num / den : NaN;
+
+          bayesHTML = `
+            <div class="formula-equation formula-numeric">
+              <span>=</span>
+              <span class="fraction">
+                <span class="frac-num">(Spec)(1 − Prev)</span>
+                <span class="frac-bar"></span>
+                <span class="frac-den">
+                  (Spec)(1 − Prev)
+                  &nbsp;+&nbsp;
+                  (1 − Sens)(Prev)
+                </span>
+              </span>
+            </div>
+            <div class="formula-equation formula-numeric">
+              <span>=</span>
+              <span class="fraction">
+                <span class="frac-num">(${specDec.toFixed(3)})(1 − ${prevDec.toFixed(3)})</span>
+                <span class="frac-bar"></span>
+                <span class="frac-den">
+                  (1 − ${sensDec.toFixed(3)})(${prevDec.toFixed(3)})
+                  &nbsp;+&nbsp;
+                  (${specDec.toFixed(3)})(1 − ${prevDec.toFixed(3)})
+                </span>
+              </span>
+            </div>
+            <div class="formula-equation formula-numeric">
+              <span>≈ ${fmtPct(bayesVal)}</span>
+            </div>
+          `;
+          abstractDivTwo.innerHTML = bayesHTML;
+        }
+      } else {
+        abstractDiv.textContent = `${def.long} is undefined for the current settings.`;
+      }
+
+      // ----- 2) Counts-based numeric fraction (always shown) -----
+      if (denominatorTotal > 0){
+        let numericHTML = `
+          <div class="formula-equation formula-numeric">
+            <span>${def.long} =</span>
+            <span class="fraction">
+              <span class="frac-num">${def.numLabel}</span>
+              <span class="frac-bar"></span>
+              <span class="frac-den">${def.denLabel1} + ${def.denLabel2}</span>
+            </span>
+            <span>=</span>
+            <span class="fraction">
+              <span class="frac-num">${fmtCount(numValue)}</span>
+              <span class="frac-bar"></span>
+              <span class="frac-den">${fmtCount(denValue1)} + ${fmtCount(denValue2)}</span>
+            </span>
+            <span>= ${fmtPct(value)}</span>
+          </div>
+        `;
+
+        numericDiv.innerHTML = numericHTML;
+      } else {
+        numericDiv.textContent = `${def.long} is undefined for the current settings.`;
+      }
+    }
+
+    // ------- Data & update
+    const DX = 0.1;
+    const XMIN = -10, XMAX = 10;
+    const DEFAULT_SD = 1.5;
+
+    const TOTAL_SCALE = 90000;
+
+    function getParams(){
+      const population = parseInt(document.getElementById("population").value,10) || 100000;
+      const prevalencePct = parseFloat(document.getElementById("prevalence").value) || 5.0;
+      const prevalence = Math.min(Math.max(prevalencePct/100, 0),1);
+
+      const meanHealthy = parseFloat(document.getElementById("mean-healthy")?.value) || -2;
+      const meanDisease = parseFloat(document.getElementById("mean-diseased")?.value) || 2;
+      const sdHealthyRaw = parseFloat(document.getElementById("sd-healthy")?.value) || DEFAULT_SD;
+      const sdDiseaseRaw = parseFloat(document.getElementById("sd-diseased")?.value) || DEFAULT_SD;
+      const sdHealthy = Math.max(sdHealthyRaw, 0.1);
+      const sdDisease = Math.max(sdDiseaseRaw, 0.1);
+
+      return {population, prevalence, meanHealthy, meanDisease, sdHealthy, sdDisease};
+    }
+
+    function renderAll(){
+      const params = getParams();
+      const {population, prevalence:prev, meanHealthy, meanDisease, sdHealthy, sdDisease} = params;
+
+      const {sensitivity: sens, specificity: spec} =
+        computeSensSpecForCutoff(currentCutoff, params);
+
+      sensitivity = sens;
+      specificity = spec;
+      prevalence = prev;
+
+      const sensPct = (sens*100);
+      const specPct = (spec*100);
+      document.getElementById("sens").value = sensPct.toFixed(1);
+      document.getElementById("spec").value = specPct.toFixed(1);
+      document.getElementById("sens-val").textContent = sensPct.toFixed(1) + "%";
+      document.getElementById("spec-val").textContent = specPct.toFixed(1) + "%";
+      document.getElementById("cutoff").value = currentCutoff.toFixed(1);
+      document.getElementById("prevalence-val").textContent =
+        (prev*100).toFixed(1) + "%";
+
+      const healthyPop = TOTAL_SCALE * (1 - prev);
+      const sickPop    = TOTAL_SCALE - healthyPop;
+
+      const left  = d3.range(XMIN,  currentCutoff + DX, DX);
+      const right = d3.range(currentCutoff, XMAX + DX, DX);
+      const full  = d3.range(XMIN, XMAX + DX, DX);
+
+      const dataHealthyLeft  = left.map(x => ({x, y: gaussian(healthyPop, x, meanHealthy, sdHealthy)}));
+      const dataHealthyRight = right.map(x => ({x, y: gaussian(healthyPop, x, meanHealthy, sdHealthy)}));
+      const dataDiseaseLeft  = left.map(x => ({x, y: gaussian(sickPop,    x, meanDisease, sdDisease)}));
+      const dataDiseaseRight = right.map(x => ({x, y: gaussian(sickPop,   x, meanDisease, sdDisease)}));
+      const dataTotal = full.map(x => ({
+        x,
+        y: gaussian(healthyPop, x, meanHealthy, sdHealthy) +
+           gaussian(sickPop,    x, meanDisease, sdDisease)
+      }));
+
+      const maxY = d3.max(dataTotal, d => d.y) || 24000;
+      y.domain([0, maxY * 1.08]);
+      gXGrid.call(xGrid);
+      gYGrid.call(yGrid);
+      gXAxis.call(xAxis);
+      gYAxis.call(yAxis);
+
+      pTotal.datum(dataTotal).attr("d", area);
+      pTN.datum(dataHealthyLeft).attr("d", area);
+      pFP.datum(dataHealthyRight).attr("d", area);
+      pFN.datum(dataDiseaseLeft).attr("d", area);
+      pTP.datum(dataDiseaseRight).attr("d", area);
+
+      cutoffLine
+        .attr("x1", x(currentCutoff))
+        .attr("x2", x(currentCutoff))
+        .attr("y1", y(maxY * 1.08))
+        .attr("y2", y(0));
+
+      document.getElementById("roc-cutoff").value = currentCutoff.toFixed(1);
+      document.getElementById("roc-cutoff-val").textContent = currentCutoff.toFixed(1);
+
+      // Update area rectangles using prevalence/sensitivity/specificity
+      const diseasedW = prev;
+      const healthyW  = 1 - prev;
+      const tpH = sens;
+      const fnH = 1 - sens;
+      const tnH = spec;
+      const fpH = 1 - spec;
+
+      const fnWidth  = Ax(diseasedW) - Ax(0);
+      const fnHeight = Ay(0) - Ay(fnH);
+
+      const tpWidth  = Ax(diseasedW) - Ax(0);
+      const tpHeight = Ay(fnH) - Ay(fnH + tpH);
+
+      const tnWidth  = Ax(diseasedW + healthyW) - Ax(diseasedW);
+      const tnHeight = Ay(0) - Ay(tnH);
+
+      const fpWidth  = Ax(diseasedW + healthyW) - Ax(diseasedW);
+      const fpHeight = Ay(tnH) - Ay(tnH + fpH);
+
+      lastAreas = {
+        FN: { w: fnWidth, h: fnHeight },
+        TP: { w: tpWidth, h: tpHeight },
+        TN: { w: tnWidth, h: tnHeight },
+        FP: { w: fpWidth, h: fpHeight },
+      };
+
+      // Rectangles
+      rFN
+        .attr("x", Ax(0))
+        .attr("y", Ay(fnH))
+        .attr("width", fnWidth)
+        .attr("height", fnHeight);
+
+      rTP
+        .attr("x", Ax(0))
+        .attr("y", Ay(fnH + tpH))
+        .attr("width", tpWidth)
+        .attr("height", tpHeight);
+
+      rTN
+        .attr("x", Ax(diseasedW))
+        .attr("y", Ay(tnH))
+        .attr("width", tnWidth)
+        .attr("height", tnHeight);
+
+      rFP
+        .attr("x", Ax(diseasedW))
+        .attr("y", Ay(tnH + fpH))
+        .attr("width", fpWidth)
+        .attr("height", fpHeight);
+
+      // --- Brackets + labels ---
+
+      const leftColX0 = Ax(0);
+      const leftColX1 = Ax(diseasedW);
+      const rightColX0 = Ax(diseasedW);
+      const rightColX1 = Ax(diseasedW + healthyW);
+      const innerBottom = Ay(0);
+
+      const leftBracketX = leftColX0 - 18;
+      const rightBracketX = rightColX1 + 18;
+
+      // TP (Sensitivity) bracket: height of red rectangle
+      const tpTop = Ay(fnH + tpH);
+      const tpBottom = tpTop + tpHeight;
+
+      brSens.attr("d",
+        `M${leftBracketX},${tpTop}` +
+        `H${leftBracketX-4}` +
+        `V${tpBottom}` +
+        `H${leftBracketX}`
+      );
+
+      lblSens
+        .attr("x", leftBracketX - 6)
+        .attr("y", tpTop + tpHeight/2)
+        .attr("dominant-baseline","middle")
+        .text("Sensitivity");
+
+      // FN ((1 - Sensitivity)) bracket: height of purple rectangle
+      const fnTop = Ay(fnH);
+      const fnBottom = fnTop + fnHeight;
+
+      brOneMinusSens.attr("d",
+        `M${leftBracketX},${fnTop}` +
+        `H${leftBracketX-4}` +
+        `V${fnBottom}` +
+        `H${leftBracketX}`
+      );
+
+      lblOneMinusSens
+        .attr("x", leftBracketX - 6)
+        .attr("y", fnTop + fnHeight/2)
+        .attr("dominant-baseline","middle")
+        .text("(1 - Sensitivity)");
+
+      // TN (Specificity) bracket: height of blue rectangle
+      const tnTop = Ay(tnH);
+      const tnBottom = tnTop + tnHeight;
+
+      brSpec.attr("d",
+        `M${rightBracketX},${tnTop}` +
+        `H${rightBracketX+4}` +
+        `V${tnBottom}` +
+        `H${rightBracketX}`
+      );
+
+      lblSpec
+        .attr("x", rightBracketX + 6)
+        .attr("y", tnTop + tnHeight/2)
+        .attr("dominant-baseline","middle")
+        .text("Specificity");
+
+      // FP ((1 - Specificity)) bracket: height of green rectangle
+      const fpTop = Ay(tnH + fpH);
+      const fpBottom = fpTop + fpHeight;
+
+      brOneMinusSpec.attr("d",
+        `M${rightBracketX},${fpTop}` +
+        `H${rightBracketX+4}` +
+        `V${fpBottom}` +
+        `H${rightBracketX}`
+      );
+
+      lblOneMinusSpec
+        .attr("x", rightBracketX + 6)
+        .attr("y", fpTop + fpHeight/2)
+        .attr("dominant-baseline","middle")
+        .text("(1 - Specificity)");
+
+      // Bottom brackets: Prevalence and (1 - Prevalence)
+      const prevBracketY = innerBottom + 16;
+      const oneMinusPrevBracketY = innerBottom + 36;
+
+      // Prevalence: width of diseased side (purple+red)
+      brPrev.attr("d",
+        `M${leftColX0},${prevBracketY-4}` +
+        `V${prevBracketY}` +
+        `H${leftColX1}` +
+        `V${prevBracketY-4}`
+      );
+
+      lblPrev
+        .attr("x", (leftColX0 + leftColX1)/2)
+        .attr("y", prevBracketY + 12)
+        .text("Prevalence");
+
+      // (1 - Prevalence): width of healthy side (blue+green)
+      brOneMinusPrev.attr("d",
+        `M${rightColX0},${oneMinusPrevBracketY-4}` +
+        `V${oneMinusPrevBracketY}` +
+        `H${rightColX1}` +
+        `V${oneMinusPrevBracketY-4}`
+      );
+
+      lblOneMinusPrev
+        .attr("x", (rightColX0 + rightColX1)/2)
+        .attr("y", oneMinusPrevBracketY + 12)
+        .text("(1 - Prevalence)");
+
+      updateRocCurve(params, sens, spec);
+      updateResultsCard(population, prev, sens, spec);
+    }
+
+    // ------- Event handlers for linked sliders/inputs
+    const sensEl  = document.getElementById("sens");
+    const specEl  = document.getElementById("spec");
+    const cutEl   = document.getElementById("cutoff");
+    const popEl   = document.getElementById("population");
+    const prevEl  = document.getElementById("prevalence");
+
+    const rocCutEl = document.getElementById("roc-cutoff");
+    const meanHealthyEl = document.getElementById("mean-healthy");
+    const meanDiseaseEl = document.getElementById("mean-diseased");
+    const sdHealthyEl = document.getElementById("sd-healthy");
+    const sdDiseaseEl = document.getElementById("sd-diseased");
+
+    function findCutoffForTargetSensitivity(target){
+      const params = getParams();
+      let bestC = XMIN;
+      let bestDiff = Infinity;
+      for(let c=XMIN; c<=XMAX; c+=DX){
+        const {sensitivity: s} = computeSensSpecForCutoff(c, params);
+        const d = Math.abs(s - target);
+        if(d < bestDiff){
+          bestDiff = d;
+          bestC = c;
+        }
+      }
+      return bestC;
+    }
+    function findCutoffForTargetSpecificity(target){
+      const params = getParams();
+      let bestC = XMIN;
+      let bestDiff = Infinity;
+      for(let c=XMIN; c<=XMAX; c+=DX){
+        const {specificity: s} = computeSensSpecForCutoff(c, params);
+        const d = Math.abs(s - target);
+        if(d < bestDiff){
+          bestDiff = d;
+          bestC = c;
+        }
+      }
+      return bestC;
+    }
+
+    sensEl.addEventListener("input", () => {
+      const target = parseFloat(sensEl.value)/100;
+      currentCutoff = findCutoffForTargetSensitivity(target);
+      renderAll();
+    });
+    specEl.addEventListener("input", () => {
+      const target = parseFloat(specEl.value)/100;
+      currentCutoff = findCutoffForTargetSpecificity(target);
+      renderAll();
+    });
+    cutEl.addEventListener("input", () => {
+      currentCutoff = parseFloat(cutEl.value);
+      renderAll();
+    });
+    rocCutEl.addEventListener("input", () => {
+      currentCutoff = parseFloat(rocCutEl.value);
+      renderAll();
+    });
+
+    [popEl, prevEl, meanHealthyEl, meanDiseaseEl, sdHealthyEl, sdDiseaseEl].forEach(el => {
+      if (!el) return;
+      el.addEventListener("input", () => {
+        renderAll();
+      });
+    });
+
+    const metricInputs = document.querySelectorAll('input[name="metric"]');
+    metricInputs.forEach(input => {
+      input.addEventListener("change", updateFormulaDisplay);
+    });
+
+    // ------- Mobile viz toggle logic -------
+    const gaussCard = document.getElementById("gauss-card");
+    const areasCard = document.getElementById("areas-card");
+    const vizToggle = document.querySelector(".viz-toggle");
+    const vizToggleButtons = document.querySelectorAll(".viz-toggle-btn");
+
+    function applyVizLayout(){
+        if (!gaussCard || !areasCard || !vizToggle) return;
+
+        const width = window.innerWidth;
+        const useToggleLayout = width <= 1200;  // SMALL + MEDIUM use toggle
+
+        if (useToggleLayout){
+            vizToggle.style.display = "flex";
+
+            let activeBtn = document.querySelector(".viz-toggle-btn.active") || vizToggleButtons[0];
+            if (!activeBtn) return;
+
+            const target = activeBtn.dataset.target;
+            gaussCard.style.display  = (target === "gauss")  ? "block" : "none";
+            areasCard.style.display  = (target === "areas") ? "block" : "none";
+        } else {
+            // Wide desktop: show both, hide toggle
+            vizToggle.style.display = "none";
+            gaussCard.style.display = "block";
+            areasCard.style.display = "block";
+        }
+    }
+
+
+    vizToggleButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        vizToggleButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        applyVizLayout();
+      });
+    });
+
+    window.addEventListener("resize", applyVizLayout);
+
+    // ------- Initial render
+    renderAll();
+    applyVizLayout();
+  </script>
+</body>
+</html>
