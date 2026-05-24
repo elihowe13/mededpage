@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medical Education Tools</title>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #5f6b7a;
+      --border: #dbe3ef;
+      --accent: #1f77b4;
+      --accent-dark: #155d91;
+      --accent-soft: #e7f3fc;
+      --shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(31, 119, 180, 0.14), transparent 32rem),
+        linear-gradient(180deg, #ffffff 0%, var(--bg) 45%, #eef3f9 100%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 56px 0 72px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+      margin-bottom: 34px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 800px;
+      font-size: clamp(2.25rem, 7vw, 4.6rem);
+      line-height: 0.96;
+      letter-spacing: -0.06em;
+    }
+
+    .description {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+    }
+
+    .hero-card {
+      margin-top: 22px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(1.35rem, 3vw, 1.8rem);
+      letter-spacing: -0.03em;
+    }
+
+    .section-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .tool-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 230px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: var(--card);
+      color: inherit;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(31, 41, 55, 0.05);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      overflow: hidden;
+    }
+
+    .tool-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--accent), #63a8d8);
+      opacity: 0.95;
+    }
+
+    .tool-card:hover,
+    .tool-card:focus-visible {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 36px rgba(31, 41, 55, 0.12);
+      border-color: rgba(31, 119, 180, 0.45);
+      outline: none;
+    }
+
+    .tool-type {
+      display: inline-flex;
+      width: fit-content;
+      margin-bottom: 14px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .tool-card h3 {
+      margin: 0 0 10px;
+      font-size: 1.35rem;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+    }
+
+    .tool-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .tool-action {
+      margin-top: auto;
+      padding-top: 22px;
+      color: var(--accent-dark);
+      font-weight: 800;
+    }
+
+    .placeholder-card {
+      border-style: dashed;
+      background: rgba(255, 255, 255, 0.58);
+    }
+
+    .placeholder-card::before {
+      background: linear-gradient(90deg, #cbd5e1, #e2e8f0);
+    }
+
+    footer {
+      margin-top: 34px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: #eef2f7;
+      color: #334155;
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100% - 24px, 1100px);
+        padding-top: 34px;
+      }
+
+      .hero-card {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .section-header {
+        display: block;
+      }
+
+      .section-note {
+        margin-top: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <span class="eyebrow">Medical education tools</span>
+      <h1>Interactive learning modules for clinical reasoning.</h1>
+      <p class="description">
+        A growing collection of visual, interactive tools for learning medical concepts. These modules are designed to make abstract ideas easier to see, manipulate, and remember.
+      </p>
+    </header>
+
+    <section class="hero-card" aria-labelledby="tools-heading">
+      <div class="section-header">
+        <div>
+          <h2 id="tools-heading">Available modules</h2>
+          <p class="section-note">Add new pages here as the project grows.</p>
+        </div>
+      </div>
+
+      <div class="tool-grid">
+        <a class="tool-card" href="testing-simulator.html">
+          <span class="tool-type">Interactive simulator</span>
+          <h3>Diagnostic Testing Simulator</h3>
+          <p>
+            Explore sensitivity, specificity, prevalence, PPV, NPV, cutoff values, and population area diagrams using an interactive diagnostic testing model.
+          </p>
+          <span class="tool-action">Open simulator →</span>
+        </a>
+
+        <!-- Copy and edit this card when you add another page.
+        <a class="tool-card" href="your-new-page.html">
+          <span class="tool-type">Module type</span>
+          <h3>Your New Module Title</h3>
+          <p>
+            Briefly describe what this page teaches or lets the learner explore.
+          </p>
+          <span class="tool-action">Open module →</span>
+        </a>
+        -->
+
+        <div class="tool-card placeholder-card" aria-label="Placeholder for future module">
+          <span class="tool-type">Coming soon</span>
+          <h3>More modules</h3>
+          <p>
+            Use this space for future tools, written teaching modules, simulations, calculators, or visual explainers.
+          </p>
+          <span class="tool-action">Add another link when ready</span>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>
+        To add another page, copy one of the link cards and update the <code>href</code>, title, and description.
+      </p>
+    </footer>
+  </main>
+</body>
+</html>
